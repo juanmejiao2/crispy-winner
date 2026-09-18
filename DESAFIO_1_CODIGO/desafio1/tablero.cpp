@@ -183,13 +183,23 @@ void eliminarColumna(unsigned char** tablero, int filas, int* columnas, int posi
         *tablero = nuevo_tablero;
 
     } else {
-        for(int f=0; f<filas ;f++){
+        int total_fichas= filas*columnas_nuevas;
+        unsigned char* temporal= new unsigned char[total_fichas];
+        int posicion=0;
+
+        for(int f=0; f<filas ; f++){
             for (int c = 0; c < columnas_nuevas; c++) {
                 int c_origen = (c < posicion_columna) ? c : c + 1;
-                unsigned char ficha = obtenerFicha(*tablero, *columnas, f, c_origen);
-                guardarFicha(*tablero, *columnas, f, c, ficha);
+                temporal[posicion++]= obtenerFicha(*tablero, *columnas, f, c_origen);
             }
         }
+        posicion= 0;
+        for(int f= 0; f<filas; f++){
+            for(int c= 0; c<columnas_nuevas; c++){
+                guardarFicha(*tablero, columnas_nuevas, f, c, temporal[posicion++]);
+            }
+        }
+    delete[] temporal;
     }
-    *columnas= columnas_nuevas;
+    *columnas = columnas_nuevas;
 }
