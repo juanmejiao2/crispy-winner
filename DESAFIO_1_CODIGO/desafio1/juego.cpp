@@ -5,16 +5,26 @@
 
 using namespace std;
 
-bool detectarYEliminar(unsigned char* tablero, int filas, int columnas, bool* marcados) {
+char obtenerCaracterFicha(unsigned char ficha) {
+    switch(ficha) {
+    case 0: return '#'; // 000
+    case 1: return '%'; // 001
+    case 2: return 'x'; // 010
+    case 3: return '&'; // 011
+    case 4: return '?'; // 100
+    case 5: return '~'; // 101
+    case 6: return 'o'; // 110 (Estado libre / vacío)
+    default: return 'C'; // 111 (Estado especial)
+    }
+}
+
+bool detectarYEliminar(unsigned char* tablero, int filas, int columnas, bool* marcados, int* acumFichas, int* acumCombos) {
     if (!tablero || !marcados || filas < 3 || columnas < 3) return false;
 
     int total_casillas = filas * columnas;
+    for (int i = 0; i < total_casillas; i++) marcados[i] = false;
 
-    for (int i = 0; i < total_casillas; i++) {
-        marcados[i] = false;
-    }
-
-    bool hubo_combinacion = false;
+    int combosEnRonda = 0;
 
     for (int f = 0; f < filas; f++) {
         for (int c = 0; c < columnas - 2; c++) {
@@ -23,16 +33,10 @@ bool detectarYEliminar(unsigned char* tablero, int filas, int columnas, bool* ma
             unsigned char f3 = obtenerFicha(tablero, columnas, f, c + 2);
 
             if (f1 < 6 && f1 == f2 && f2 == f3) {
-                int i1 = f * columnas + c;
-                int i2 = i1 + 1;
-                int i3 = i1 + 2;
-
-                if (i3 < total_casillas) {
-                    marcados[i1] = true;
-                    marcados[i2] = true;
-                    marcados[i3] = true;
-                    hubo_combinacion = true;
-                }
+                marcados[f * columnas + c] = true;
+                marcados[f * columnas + (c + 1)] = true;
+                marcados[f * columnas + (c + 2)] = true;
+                combosEnRonda++;
             }
         }
     }
@@ -43,22 +47,18 @@ bool detectarYEliminar(unsigned char* tablero, int filas, int columnas, bool* ma
             unsigned char f3 = obtenerFicha(tablero, columnas, f + 2, c);
 
             if (f1 < 6 && f1 == f2 && f2 == f3) {
-                int i1 = f * columnas + c;
-                int i2 = (f + 1) * columnas + c;
-                int i3 = (f + 2) * columnas + c;
-
-                if (i3 < total_casillas) {
-                    marcados[i1] = true;
-                    marcados[i2] = true;
-                    marcados[i3] = true;
-                    hubo_combinacion = true;
-                }
+                marcados[f * columnas + c] = true;
+                marcados[(f + 1) * columnas + c] = true;
+                marcados[(f + 2) * columnas + c] = true;
+                combosEnRonda++;
             }
         }
     }
-    if (hubo_combinacion) {
+    int fichasBorradasRonda = 0;
+    if (combosEnRonda > 0) {
         for (int i = 0; i < total_casillas; i++) {
             if (marcados[i]) {
+                fichasBorradasRonda++;
                 int f = i / columnas;
                 int c = i % columnas;
                 guardarFicha(tablero, columnas, f, c, 6); // 6 = Vacio
@@ -66,7 +66,10 @@ bool detectarYEliminar(unsigned char* tablero, int filas, int columnas, bool* ma
         }
     }
 
-    return hubo_combinacion;
+    if (acumFichas) *acumFichas += fichasBorradasRonda;
+    if (acumCombos) *acumCombos += combosEnRonda;
+
+    return (combosEnRonda > 0);
 }
 
 void aplicarGravedad(unsigned char* tablero, int filas, int columnas) {
@@ -74,10 +77,8 @@ void aplicarGravedad(unsigned char* tablero, int filas, int columnas) {
 
     for (int c = 0; c < columnas; c++) {
         int destino = filas - 1;
-
         for (int f = filas - 1; f >= 0; f--) {
             unsigned char ficha = obtenerFicha(tablero, columnas, f, c);
-
             if (ficha != 6) {
                 if (f != destino) {
                     guardarFicha(tablero, columnas, destino, c, ficha);
@@ -102,7 +103,7 @@ void rellenarVacios(unsigned char* tablero, int filas, int columnas) {
     }
 }
 
-int ejecutarCascadas(unsigned char* tablero, int filas, int columnas) {
+int ejecutarCascadas(unsigned char* tablero, int filas, int columnas, int* acumFichas, int* acumCombos) {
     if (!tablero || filas < 3 || columnas < 3) return 0;
 
     int total_casillas = filas * columnas;
@@ -112,7 +113,7 @@ int ejecutarCascadas(unsigned char* tablero, int filas, int columnas) {
     aplicarGravedad(tablero, filas, columnas);
     rellenarVacios(tablero, filas, columnas);
 
-    while (detectarYEliminar(tablero, filas, columnas, marcados)) {
+    while (detectarYEliminar(tablero, filas, columnas, marcados, acumFichas, acumCombos)) {
         contador_cascadas++;
         aplicarGravedad(tablero, filas, columnas);
         rellenarVacios(tablero, filas, columnas);
@@ -137,11 +138,8 @@ void mostrarTableroFichas(const unsigned char* tablero, int filas, int columnas)
     for (int f = 0; f < filas; f++) {
         for (int c = 0; c < columnas; c++) {
             unsigned char ficha = obtenerFicha(tablero, columnas, f, c);
-            if (ficha == 6) {
-                cout << "[ . ] ";
-            } else {
-                cout << "[ " << (int)ficha << " ] ";
-            }
+            if (ficha == 6) cout << "[ . ] ";
+            else cout << "[ " << (int)ficha << " ] ";
         }
         cout << "\n";
     }
@@ -165,16 +163,14 @@ void mostrarTableroBinario(const unsigned char* tablero, int filas, int columnas
 
 void mostrarTableroNumerado(const unsigned char* tablero, int filas, int columnas) {
     if (!tablero) return;
+
     cout << "\n    ";
     for (int c = 1; c <= columnas; c++) {
         if (c < 10) cout << " C" << c << " ";
         else cout << "C" << c << " ";
     }
-    cout << "\n";
-    cout << "   +";
-    for (int c = 0; c < columnas; c++) {
-        cout << "---+";
-    }
+    cout << "\n   +";
+    for (int c = 0; c < columnas; c++) cout << "---+";
     cout << "\n";
 
     for (int f = 0; f < filas; f++) {
@@ -184,17 +180,11 @@ void mostrarTableroNumerado(const unsigned char* tablero, int filas, int columna
 
         for (int c = 0; c < columnas; c++) {
             unsigned char ficha = obtenerFicha(tablero, columnas, f, c);
-            if (ficha == 6) {
-                cout << " . |";
-            } else {
-                cout << " " << (int)ficha << " |";
-            }
+            if (ficha == 6) cout << " . |";
+            else cout << " " << obtenerCaracterFicha(ficha) << " |";
         }
-        cout << "\n";
-        cout << "   +";
-        for (int c = 0; c < columnas; c++) {
-            cout << "---+";
-        }
+        cout << "\n   +";
+        for (int c = 0; c < columnas; c++) cout << "---+";
         cout << "\n";
     }
 }

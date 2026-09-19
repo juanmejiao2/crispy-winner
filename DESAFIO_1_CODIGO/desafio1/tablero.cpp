@@ -4,7 +4,7 @@ unsigned char* crearTablero(int filas, int columnas){
     int bits_totales= filas*columnas*3;
     int bytes_necesarios=(bits_totales+7)/8;
 
-    unsigned char* tablero = new unsigned char[bytes_necesarios];
+    unsigned char* tablero = new unsigned char[bytes_necesarios]();
 
     for (int i = 0; i < bytes_necesarios; i++) {
         tablero[i] = 0;
@@ -46,7 +46,7 @@ void guardarFicha(unsigned char* tablero, int columnas, int fila, int columna, u
     int desplazamiento_bit= bit_inicial % 8;
 
     if (desplazamiento_bit<=5){
-        int desplazamiento= 5-desplazamiento_bit;
+    int desplazamiento= 5-desplazamiento_bit;
         unsigned char bitmask= ~(0x07<<desplazamiento);
         tablero[byte_buscado] &= bitmask;
         tablero[byte_buscado] |= (valor<<desplazamiento);
@@ -183,23 +183,13 @@ void eliminarColumna(unsigned char** tablero, int filas, int* columnas, int posi
         *tablero = nuevo_tablero;
 
     } else {
-        int total_fichas= filas*columnas_nuevas;
-        unsigned char* temporal= new unsigned char[total_fichas];
-        int posicion=0;
-
-        for(int f=0; f<filas ; f++){
+        for(int f=0; f<filas ;f++){
             for (int c = 0; c < columnas_nuevas; c++) {
                 int c_origen = (c < posicion_columna) ? c : c + 1;
-                temporal[posicion++]= obtenerFicha(*tablero, *columnas, f, c_origen);
+                unsigned char ficha = obtenerFicha(*tablero, *columnas, f, c_origen);
+                guardarFicha(*tablero, *columnas, f, c, ficha);
             }
         }
-        posicion= 0;
-        for(int f= 0; f<filas; f++){
-            for(int c= 0; c<columnas_nuevas; c++){
-                guardarFicha(*tablero, columnas_nuevas, f, c, temporal[posicion++]);
-            }
-        }
-    delete[] temporal;
     }
-    *columnas = columnas_nuevas;
+    *columnas= columnas_nuevas;
 }
